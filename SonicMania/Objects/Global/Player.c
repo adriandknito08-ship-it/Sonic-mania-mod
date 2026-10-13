@@ -1189,14 +1189,14 @@ bool32 Player_TryTransform(EntityPlayer *player, uint8 emeraldMasks)
 #endif
 
 #if MANIA_USE_PLUS
-    if ((player->superState >= SUPERSTATE_SUPER || emeralds != 0b01111111 || player->rings < 50) && emeraldMasks != 0xFF)
+    if ((player->superState >= SUPERSTATE_SUPER || emeralds != 0b01111111) && emeraldMasks != 0xFF)
         return false;
 
     RSDK.StopSfx(Player->sfxSwapFail);
     if (globals->secrets & SECRET_SUPERDASH)
         player->stateAbility = ERZStart_Player_StartSuperFly;
 #else
-    if (player->superState >= SUPERSTATE_SUPER || emeralds != 0b01111111 || player->rings < 50)
+    if (player->superState >= SUPERSTATE_SUPER || emeralds != 0b01111111)
         return false;
 #endif
 
@@ -1730,13 +1730,7 @@ void Player_HandleSuperForm(void)
 
         if (!canStopSuper) {
             self->invincibleTimer = 60;
-            if (--self->superRingLossTimer <= 0) {
-                self->superRingLossTimer = 60;
-                if (--self->rings <= 0) {
-                    self->rings      = 0;
-                    self->superState = SUPERSTATE_FADEOUT;
-                }
-            }
+            /* Infinite Super: ring drain disabled. */
         }
     }
 
