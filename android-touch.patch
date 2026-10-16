@@ -1,0 +1,74 @@
+diff --git a/RSDKv5/RSDK/Input/Input.cpp b/RSDKv5/RSDK/Input/Input.cpp
+index c619d40..01d615d 100644
+--- a/RSDKv5/RSDK/Input/Input.cpp
++++ b/RSDKv5/RSDK/Input/Input.cpp
+@@ -8,6 +8,7 @@ int32 RSDK::inputDeviceCount = 0;
+ int32 RSDK::inputSlots[PLAYER_COUNT]              = { INPUT_NONE, INPUT_NONE, INPUT_NONE, INPUT_NONE };
+ InputDevice *RSDK::inputSlotDevices[PLAYER_COUNT] = { NULL, NULL, NULL, NULL };
+ 
++volatile int32 RSDK::androidTouchButtonMask = 0;
+ ControllerState RSDK::controller[PLAYER_COUNT + 1];
+ AnalogState RSDK::stickL[PLAYER_COUNT + 1];
+ #if RETRO_REV02
+@@ -232,6 +233,13 @@ void RSDK::ProcessInput()
+     RSDK::SKU::HandleSpecialKeys();
+ #endif
+ 
++    const int32 touchButtons = androidTouchButtonMask;
++    if (touchButtons & 1)  controller[CONT_P1].keyUp.press = true;
++    if (touchButtons & 2)  controller[CONT_P1].keyDown.press = true;
++    if (touchButtons & 4)  controller[CONT_P1].keyLeft.press = true;
++    if (touchButtons & 8)  controller[CONT_P1].keyRight.press = true;
++    if (touchButtons & 16) controller[CONT_P1].keyA.press = true;
++    if (touchButtons & 32) controller[CONT_P1].keyB.press = true;
+     for (int32 c = 0; c <= PLAYER_COUNT; ++c) {
+         if (c <= 0 || inputSlots[c - 1] != INPUT_UNASSIGNED) {
+             InputState *cont[] = {
+diff --git a/RSDKv5/RSDK/Input/Input.hpp b/RSDKv5/RSDK/Input/Input.hpp
+index a49620d..b44de73 100644
+--- a/RSDKv5/RSDK/Input/Input.hpp
++++ b/RSDKv5/RSDK/Input/Input.hpp
+@@ -460,6 +460,7 @@ extern int32 inputDeviceCount;
+ extern int32 inputSlots[PLAYER_COUNT];
+ extern InputDevice *inputSlotDevices[PLAYER_COUNT];
+ 
++extern volatile int32 androidTouchButtonMask;
+ extern ControllerState controller[PLAYER_COUNT + 1];
+ extern AnalogState stickL[PLAYER_COUNT + 1];
+ #if RETRO_REV02
+diff --git a/android/app/src/main/java/org/rems/rsdkv5/RSDK.java b/android/app/src/main/java/org/rems/rsdkv5/RSDK.java
+index 06e18ef..3f7cf5c 100644
+--- a/android/app/src/main/java/org/rems/rsdkv5/RSDK.java
++++ b/android/app/src/main/java/org/rems/rsdkv5/RSDK.java
+@@ -134,6 +134,8 @@ public class RSDK extends GameActivity {
+         frameLayout.setId(this.contentViewId);
+         frameLayout.addView(this.mSurfaceView);
+         frameLayout.addView(loadingIcon);
++        TouchControlsView touchControlsView = new TouchControlsView(this);
++        frameLayout.addView(touchControlsView);
+         this.setContentView(frameLayout);
+         frameLayout.requestFocus();
+         this.mSurfaceView.getHolder().addCallback(this);
+@@ -223,6 +225,7 @@ public class RSDK extends GameActivity {
+ 
+     public static native byte[] nativeLoadFile(String file);
+     public static native void nativeOnTouch(int fingerID, int action, float x, float y);
++    public static native void nativeSetTouchButtons(int buttons);
+ 
+     public int getFD(byte[] file, byte mode) {
+         String filepath = new String(file);
+diff --git a/dependencies/android/androidHelpers.cpp b/dependencies/android/androidHelpers.cpp
+index 9284fd8..4a5af61 100644
+--- a/dependencies/android/androidHelpers.cpp
++++ b/dependencies/android/androidHelpers.cpp
+@@ -205,6 +205,10 @@ JNIEXPORT void JNICALL jnifunc(nativeOnTouch, RSDK, jint finger, jint action, jf
+     }
+ }
+ 
++JNIEXPORT void JNICALL jnifunc(nativeSetTouchButtons, RSDK, jint buttons) {
++    RSDK::androidTouchButtonMask = buttons & 63;
++}
++
+ JNIEXPORT jbyteArray JNICALL jnifunc(nativeLoadFile, RSDK, jstring file) {
+     const char* path = env->GetStringUTFChars(file, NULL);
+     FileInfo info;
